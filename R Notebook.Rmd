@@ -1,0 +1,322 @@
+---
+title: "CDL Assignment_Mayur Matang"
+output:
+  html_document:
+    df_print: paged
+---
+
+### Load libraries
+```{r}
+library(tidyverse)
+```
+
+### Load data files
+```{r}
+rawdata_2017 <- read.csv("district_level_mapping_2017.csv")
+rawdata_2018 <- read.csv("district_level_mapping_2018.csv")
+rawdata_2019 <- read.csv("district_level_mapping_2019.csv")
+rawdata_2020 <- read.csv("district_level_mapping_2020.csv")
+```
+
+### Exploring datasets
+```{r}
+glimpse(rawdata_2017)
+head(rawdata_2017)
+tail(rawdata_2017)
+
+glimpse(rawdata_2018)
+head(rawdata_2018)
+tail(rawdata_2018)
+
+glimpse(rawdata_2019)
+head(rawdata_2019)
+tail(rawdata_2019)
+
+glimpse(rawdata_2020) 
+head(rawdata_2020)
+tail(rawdata_2020)
+```
+
+### Renaming column names in all 4 datasets
+```{r}
+rawdata_2017_renamed <- rawdata_2017 %>% 
+  rename(
+    Plan.Nonplan = Plan...Non.Plan,
+    Voted.Charged = Voted...Charged,
+    Fiscal.Year = fiscal_year,
+    Actual.Progressive.Exp.Upto.Feb = Actual.Progressive.Expenditure.upto.month..October.,
+    Provisional.Current.Exp.Mar = Provisional.Current.Month.Expenditure.November.,
+    Total.Exp = Total.Expenditure.Upto.Month..November.,
+    Fund.Utilisation.Percent = X..A.E
+  )
+
+rawdata_2018_renamed <- rawdata_2018 %>% 
+  rename(
+    Plan.Nonplan = Plan...Non.Plan,
+    Voted.Charged = Voted...Charged,
+    Fiscal.Year = fiscal_year,
+    Actual.Progressive.Exp.Upto.Feb = Actual.Progressive.Expenditure.upto.month..October.,
+    Provisional.Current.Exp.Mar = Provisional.Current.Month.Expenditure.November.,
+    Total.Exp = Total.Expenditure.Upto.Month..November.,
+    Fund.Utilisation.Percent = X..A.E
+  )
+
+rawdata_2019_renamed <- rawdata_2019 %>% 
+  rename(
+    Plan.Nonplan = Plan...Non.Plan,
+    Voted.Charged = Voted...Charged,
+    Fiscal.Year = fiscal_year,
+    Actual.Progressive.Exp.Upto.Feb = Actual.Progressive.Expenditure.upto.month..October.,
+    Provisional.Current.Exp.Mar = Provisional.Current.Month.Expenditure.November.,
+    Total.Exp = Total.Expenditure.Upto.Month..November.,
+    Fund.Utilisation.Percent = X..A.E
+  )
+
+rawdata_2020_renamed <- rawdata_2020 %>% 
+  rename(
+    Plan.Nonplan = Plan...Non.Plan,
+    Voted.Charged = Voted...Charged,
+    Fiscal.Year = fiscal_year,
+    Actual.Progressive.Exp.Upto.Feb = Actual.Progressive.Expenditure.upto.month..February.,
+    Provisional.Current.Exp.Mar = Provisional.Current.Month.Expenditure.March.,
+    Total.Exp = Total.Expenditure.Upto.Month..March.,
+    Fund.Utilisation.Percent = X..A.E
+  )
+```
+
+### Combining all 4 datasets
+```{r}
+rawdata_combined <- rbind(rawdata_2017_renamed, rawdata_2018_renamed, rawdata_2019_renamed, rawdata_2020_renamed)
+nrow(rawdata_combined)
+```
+
+### Exploring school dataset
+```{r}
+glimpse(rawdata_combined)
+```
+
+### Changing class of variables
+```{r}
+rawdata_combined[, c(1,2,3,4,5,7,9,11,13,14,15)] <- lapply(rawdata_combined[, c(1,2,3,4,5,7,9,11,13,14,15)], as.factor)
+glimpse(rawdata_combined)
+summary(rawdata_combined)
+```
+
+### Check for duplicate rows
+```{r}
+nrow(rawdata_combined)
+nrow(distinct(rawdata_combined))
+
+nrow(rawdata_combined) - nrow(distinct(rawdata_combined))   # There are 554842 duplicate rows in the data.
+
+rawdata_clean_1 <- distinct(rawdata_combined)   # Duplicates removed
+```
+
+### Fixing Anomalies
+```{r}
+rawdata_clean_1 %>% select(16,19) %>% summary   # negative values in the allotment & total expenditure columns
+
+rawdata_clean_2 <- rawdata_clean_1 %>%    # Dropping negative values
+  filter(Progressive.Allotment >= 0, Total.Exp >= 0)
+
+nrow(rawdata_clean_2)
+rawdata_clean_2 %>% select(16,19) %>% summary
+```
+
+### Finding NAs
+```{r}
+colSums(is.na(rawdata_clean_2))   # 10046 NAs are present in Division code & Treasury code.Since there are no NAs in the Treasury Name, NAs are not an issue here.
+```
+
+### Task 1 - Share of school expenditure in the total expenditure of U.P.
+```{r}
+school_share <- rawdata_clean_2 %>% 
+  group_by(Fiscal.Year) %>% 
+  summarise(
+    school_exp_primary = sum(Total.Exp[Grant.Number == 71]),
+    school_exp_secondary = sum(Total.Exp[Grant.Number == 72]),
+    school_exp_total = sum(school_exp_primary + school_exp_secondary),
+    state_exp_total = sum(Total.Exp),
+    school_exp_share = school_exp_total/state_exp_total
+            )
+```
+
+### Task 2 - Share of capital expenditure
+```{r}
+rawdata_clean_2 %>% filter(Grant.Number %in% c(71, 72)) %>% distinct(Major.Head.Code)   # Major heads in school education expenditure
+
+
+school_rev_cap_share <- rawdata_clean_2 %>%
+                        filter(Grant.Number %in% c(71, 72)) %>% 
+                        group_by(Fiscal.Year) %>% 
+                        summarise(
+                          school_rev_2071 = sum(Total.Exp[Major.Head.Code == 2071]),
+                          school_rev_2202 = sum(Total.Exp[Major.Head.Code == 2202]),
+                          school_rev_2204 = sum(Total.Exp[Major.Head.Code == 2204]),
+                          school_rev_2205 = sum(Total.Exp[Major.Head.Code == 2205]),
+                          school_cap_4202 = sum(Total.Exp[Major.Head.Code == 4202]),
+                          school_cap_8009 = sum(Total.Exp[Major.Head.Code == 8009]),
+                          school_rev_total = sum(school_rev_2071 + school_rev_2202 + school_rev_2204 + school_rev_2205),
+                          school_cap_total = sum(school_cap_4202 + school_cap_8009),
+                          school_exp_total = sum(school_rev_total + school_cap_total),
+                          school_rev_share = school_rev_total / school_exp_total,
+                          school_cap_share = school_cap_total / school_exp_total
+                                  )
+```
+
+### Task 4 - Rank districts based on utilization of funds for revenue & capital expenditure 
+```{r}
+district_utilization_ranking <- rawdata_clean_2 %>%   # calculating utilization district and year wise
+      filter(Grant.Number %in% c(71, 72)) %>% 
+      group_by(Fiscal.Year, Treasury) %>% 
+      summarise(
+        school_rev_2071 = sum(Total.Exp[Major.Head.Code == 2071]),
+        school_rev_2202 = sum(Total.Exp[Major.Head.Code == 2202]),
+        school_rev_2204 = sum(Total.Exp[Major.Head.Code == 2204]),
+        school_rev_2205 = sum(Total.Exp[Major.Head.Code == 2205]),
+        
+        school_cap_4202 = sum(Total.Exp[Major.Head.Code == 4202]),
+        school_cap_8009 = sum(Total.Exp[Major.Head.Code == 8009]),
+        
+        school_rev_exp_total = sum(school_rev_2071 + school_rev_2202 + school_rev_2204 + school_rev_2205),
+        school_cap_exp_total = sum(school_cap_4202 + school_cap_8009),
+        
+        school_rev_allot_2071 = sum(Progressive.Allotment[Major.Head.Code == 2071]),
+        school_rev_allot_2202 = sum(Progressive.Allotment[Major.Head.Code == 2202]),
+        school_rev_allot_2204 = sum(Progressive.Allotment[Major.Head.Code == 2204]),
+        school_rev_allot_2205 = sum(Progressive.Allotment[Major.Head.Code == 2205]),
+        
+        school_cap_allot_4202 = sum(Progressive.Allotment[Major.Head.Code == 4202]),
+        school_cap_allot_8009 = sum(Progressive.Allotment[Major.Head.Code == 8009]),
+        
+        school_rev_allot_total = sum(school_rev_allot_2071 + school_rev_allot_2202 + school_rev_allot_2204 + school_rev_allot_2205),
+        school_cap_allot_total = sum(school_cap_allot_4202 + school_cap_allot_8009),
+        
+        utilization_rev = school_rev_exp_total / school_rev_allot_total,
+        utilization_cap = school_cap_exp_total / school_cap_allot_total
+      ) 
+```
+
+### Ranking districts for their revenue & capital utilization in 2017-18. Similar rankings can be created for other fiscal years. 
+```{r}
+district_rev_utilization_ranking_2017 <- district_utilization_ranking %>%
+  filter(Fiscal.Year == "2017-2018") %>% 
+  select(Treasury, utilization_rev) %>% 
+  arrange(desc(utilization_rev))
+
+district_cap_utilization_ranking_2017 <- district_utilization_ranking %>%
+  filter(Fiscal.Year == "2017-2018") %>% 
+  select(Treasury, utilization_cap) %>% 
+  arrange(desc(utilization_cap))
+```
+
+### Task 3 - Calculate per-capita school expenditure of state & districts
+```{r}
+population <- read.csv("population.csv")   # Importing census 2011 population data for UP
+glimpse(population)
+```
+
+#### UP had a decadal growth rate of 20% from 2001 to 2011 (source: https://www.hindustantimes.com/lucknow/up-population-far-from-exploding-but-still-soaring/story-7LCpyIRiqewRGv5Pr8ta4K.html). Assuming this rate remains the same going forward, the annual growth rate of the state would be 2%.
+
+```{r}
+population_projection <- population %>% 
+  mutate(Population.2017 = Population.2011 * (1.02)^6,
+         Population.2018 = Population.2011 * (1.02)^7,
+         Population.2019 = Population.2011 * (1.02)^8,
+         Population.2020 = Population.2011 * (1.02)^9,
+         ) %>% 
+  pivot_longer(cols = 2:6,
+               names_to = "Fiscal.Year",
+               values_to = "Population"
+               ) %>% 
+  mutate(Fiscal.Year = recode(Fiscal.Year,
+                              Population.2011 = "2011-2012",
+                              Population.2017 = "2017-2018",
+                              Population.2018 = "2018-2019",
+                              Population.2019 = "2019-2020",
+                              Population.2020 = "2020-2021"))
+```
+    
+### Filtering school data
+```{r}
+schooldata <- rawdata_clean_2 %>% 
+  filter(Grant.Number %in% c(71, 72)) %>% 
+  select(Treasury, Fiscal.Year, Total.Exp)
+
+schooldata$Treasury <- as.character(schooldata$Treasury)
+schooldata$Fiscal.Year <- as.character(schooldata$Fiscal.Year) 
+glimpse(schooldata)
+
+schooldata %>% distinct(Treasury) # Shows 80 treasuries (districts) whereas there are only 75 districts in UP.
+```
+
+### Clean Treasury names in school data to match census district names in population data
+```{r}
+schooldata_clean <- schooldata %>% mutate(Treasury = recode(Treasury,
+                                        "ALLAHABAD II" = "ALLAHABAD",
+                                        "PRAYAGRAJ-CIV" = "ALLAHABAD", 
+                                        "PRAYAGRAJ-COLL" = "ALLAHABAD",
+                                        "AMBEDKARNAGAR" = "AMBEDKAR NAGAR",
+                                        "AYODHYA" = "FAIZABAD",
+                                        "BAGHPAT SADAR" = "BAGPAT",
+                                        "BHADOHI" = "SANT RAVIDAS NAGAR",
+                                        "CSMAHARAJ NAGAR" = "AMETHI",
+                                        "G.B.NAGAR" = "GAUTAM BUDDHA NAGAR",
+                                        "J.P.NAGAR" = "AMROHA",
+                                        "JHANSI-MAIN" = "JHANSI",
+                                        "KANSHI RAM NAGAR" = "KASGANJ",
+                                        "KHERI" = "LAKHIMPUR KHERI",
+                                        "KUSHI NAGAR" = "KUSHINAGAR",
+                                        "LUCKNOW COLL." = "LUCKNOW",
+                                        "LUCKNOW-JB" = "LUCKNOW",
+                                        "MEERUT SADAR" = "MEERUT",
+                                        "ORAI" = "JALAUN",
+                                        "RAEBARELI" = "RAE BARELI",
+                                        "SADAR TRY-HMRPR" = "HAMIRPUR",
+                                        "SANT KABIR NAGR" = "SANT KABIR NAGAR",
+                                        "SIDDHARTH NAGAR" = "SIDDHARTHNAGAR",
+                                        "SRAWASTI" = "SHRAVASTI",
+                                        "TRY.SONBHADRA" = "SONBHADRA",
+                                        "UNNAO TREASURY" = "UNNAO"))
+
+schooldata_clean$Treasury <- str_to_title(schooldata_clean$Treasury) # change uppercase to titlecase
+
+schooldata_clean <- schooldata_clean %>% 
+  rename(District = Treasury)
+
+schooldata_clean %>% distinct(District) %>% arrange(District)  # shows 75 treasuries/districts now
+```
+
+### Calculate per capita expenditure on school education in UP
+```{r}
+state_school_exp <- schooldata_clean %>% 
+  group_by(Fiscal.Year) %>% 
+  summarise(total_exp = sum(Total.Exp))
+
+state_pop <- population_projection %>% 
+  group_by(Fiscal.Year) %>% 
+  summarise(total_pop = sum(Population))
+
+state_pop <- state_pop[-1,-1]   # removing 2011-12 population data & year column
+
+state_percapita_school_exp <- cbind(state_school_exp, state_pop) %>% 
+  mutate(percapita_exp = total_exp/total_pop)
+```
+
+### Calculate per capita expenditure on school education in each district
+```{r}
+districts_school_exp <- schooldata_clean %>% 
+  group_by(Fiscal.Year, District) %>% 
+  summarise(total_exp = sum(Total.Exp))
+
+districts_pop <- population_projection %>% 
+  filter(Fiscal.Year != "2011-2012")
+
+# Merging exp and pop datasets
+districts_percapita_school_exp <- left_join(districts_school_exp, districts_pop, by = c('District', 'Fiscal.Year')) %>% 
+  mutate(Percapita_Exp = total_exp/Population)
+
+sum(is.na(districts_percapita_school_exp))   #There are no NAs
+```
+
+### End
